@@ -1,0 +1,45 @@
+## Setup Instructions
+
+1. **Get Telegram API Credentials**
+   - Go to https://my.telegram.org
+   - Login with your phone number
+   - Create new application → Get `api_id` and `api_hash`
+
+2. **Get Google Gemini API Key**
+   - Go to https://aistudio.google.com/app/apikey
+   - Create new key → Copy it (starts with `AIzaSy...`)
+
+3. **Clone / Create Repository**
+   ```bash
+   git clone https://github.com/yourusername/telegram-auto-chat-gemini.git
+   cd telegram-auto-chat-gemini
+
+4. Install Dependencies
+   '''bash
+   -pip install telethon google-generativeai
+
+5. Configure the Script
+- Open main.py (or whatever you name the script file)
+- Replace these values:
+Pythonapi_id = YOUR_API_ID
+api_hash = 'YOUR_API_HASH'
+phone = '+91xxxxxxxxxx'
+gemini_api_key = 'AIzaSyYOURKEYHERE'
+group_username = ''  # or your target group username
+
+6. Run the Script
+- python main.py
+First run: Enter verification code sent to your Telegram app
+Session file will be created (*.session) – next runs auto-login
+
+For 24/7 Running
+Use screen or tmux on Linux/VPS:Bashscreen -S telegram-chat
+python main.py
+# Ctrl+A then D to detach
+Or deploy on free/low-cost platforms like PythonAnywhere, Railway.app, Render.com (add as background worker)
+
+
+How to Stop
+
+Press Ctrl+C in terminal
+Or kill the process
