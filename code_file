@@ -1,0 +1,160 @@
+from telethon import TelegramClient
+from telethon.errors import FloodWaitError
+import asyncio
+import random
+import google.generativeai as genai
+from datetime import datetime
+
+# ────────────────────────────────────────
+api_id = #add your telegram api_id
+api_hash =  # add your telegram api_hash
+phone = your telegram phone number
+gemini_api_key = # paste here google Gemini_api_key here
+
+session_name = 'gemini_24x7_chat'
+group_username = #Write here which group you want message 
+
+# Gemini setup
+genai.configure(api_key=gemini_api_key)
+model = genai.GenerativeModel('gemini-1.5-flash')
+
+client = TelegramClient(session_name, api_id, api_hash)
+
+# Prompt for Gemini (casual style)
+prompt_template = """
+Tu normal Indian banda hai group mein. Casual Hindi-English mix, emojis, chill/funny tone.
+Short message bana (1-2 line), daily baat jaise: haal, mood, weather, food, time pass, active karna etc.
+Fresh aur alag lage har baar.
+Current time: {current_time}
+"""
+
+# Tere diye messages list (sab compile karke unique rakhe)
+fallback_messages = [#if you want to dd own message add here --------------
+    "Hello sabko 👋", "Kaise ho sab log?", "Koi online hai kya?", "Aaj sab kya kar rahe ho?",
+    "Good morning dosto ☀️", "Good night sabko 🌙", "Aaj ka din kaisa tha?", "Koi free hai baat karne?",
+    "Sab busy ho kya?", "Koi new update?", "Thoda group active karo yaar", "Aaj weather mast hai 😎",
+    "Kya scene chal raha hai?", "Koi interesting baat batao", "Weekend plans kya hain?", "Koi movie suggest karo",
+    "Koi music sun raha hai kya? 🎧", "Aaj bahut neend aa rahi 😴", "Sab silent kyu hain? 😄", "Chai time ☕",
+    "Lunch ho gaya sabka? 🍛", "Dinner me kya khaya? 🍽️", "Koi game khelta hai kya?", "Aaj bahut garmi/thand hai 😅",
+    "Net slow chal raha hai aaj 😑", "Time pass ho raha hai bas 😄", "Koi joke sunao 😂", "Kya chal raha hai life me?",
+    "Aaj kuch interesting hua?", "Sab kaha se ho? 🌍", "Thoda gupshup ho jaye 😄", "Sab kaam me busy ho kya?",
+    "Aaj ka mood kaisa hai?", "Koi suggestion chahiye tha", "Weekend ka wait ho raha 😄", "Koi cricket dekh raha hai? 🏏",
+    "Aaj ka plan kya hai sabka?", "Thoda hasi mazaak ho jaye 😂", "Koi night owl hai yahan? 🌙", "Subah jaldi uthna mushkil hai 😴",
+    "Aaj ka din fast gaya", "Koi new cheez try ki aaj?", "Group silent mode me hai kya 🤐", "Aaj bahut busy tha yaar",
+    "Sab chill karo 😄", "Koi travel lover hai? ✈️", "Aaj kuch productive kiya?", "Koi coding karta hai yahan? 💻",
+    "Thoda motivation chahiye 😄", "Sab safe ho na?", "Koi online aao yaar", "Aaj ka din thoda lazy tha 😅",
+    "Koi book recommend karo 📚", "Aaj ka weather perfect hai", "Koi coffee lover hai? ☕", "Sab mast ho?",
+    "Aaj kuch naya seekha kya?", "Koi tech news pata hai?", "Koi YouTube pe kya dekh raha?", "Aaj mood thoda off hai 😅",
+    "Sab positive raho 👍", "Aaj ka target complete hua?", "Koi coding help chahiye ho to bolo", "Sabka day kaisa ja raha?",
+    "Aaj kaam zyada tha yaar", "Koi fun fact batao", "Sab healthy raho 👍", "Aaj ka schedule tight hai",
+    "Koi online game khelta hai?", "Sab log kya kar rahe ho abhi?", "Aaj bahut shanti hai group me 😄",
+    "Koi bike lover hai? 🏍️", "Aaj ka mood chill hai", "Koi meme share karo 😂", "Sab active ho jao 😄",
+    "Aaj kuch new plan bana?", "Koi late night tak jagta hai?", "Aaj ka din thoda hectic tha", "Sab enjoy karo 👍",
+    "Koi idea share karo", "Aaj kuch special nahi hua 😅", "Koi weekend trip plan kar raha?", "Aaj ka din normal tha",
+    "Koi foodie hai? 🍔", "Aaj thoda rest mode me hoon 😄", "Sabka mood kaisa hai?", "Koi funny story batao 😂",
+    "Aaj kuch naya try karna hai", "Koi gym jata hai? 💪", "Sab mast raho 👍", "Aaj ka din smooth tha",
+    "Koi online class me hai? 😄", "Aaj ka plan simple hai", "Koi creative kaam karta hai?", "Sab smile karo 😊",
+    "Aaj thoda free time mila", "Koi photography karta hai? 📸", "Aaj ka mood happy hai 😄", "Koi suggestion do yaar",
+    "Sab enjoy life 👍", "Aaj kuch productive karna hai", "Koi chill mode me hai?", "Aaj ka din okay tha",
+    "Koi morning person hai? ☀️", "Sabka day awesome ho 👍", "Aaj thoda relax kar raha hoon", "Koi study kar raha hai? 📚",
+    "Aaj ka plan simple & calm", "Sab positive socho 👍", "Aaj thoda busy schedule hai", "Koi online aao baat karte hain",
+    "Aaj kuch interesting nahi 😅", "Sab kaam smooth chale 👍", "Aaj ka mood neutral hai", "Koi idea do yaar",
+    "Aaj thoda slow day hai", "Sab safe & happy raho 👍", "Aaj ka din decent tha", "Koi chat karega?",
+    "Aaj thoda free feel ho raha", "Koi suggestion chahiye tha", "Aaj ka din normal hai", "Sab mast ho 👍",
+    "Aaj thoda tired hoon 😅", "Koi fun activity karta hai?", "Aaj ka mood okay hai", "Sab enjoy karo life 👍",
+    "Aaj thoda silent hoon", "Koi baat karega?", "Aaj ka din smooth gaya", "Sab positive raho 👍",
+    "Aaj kuch new try karunga", "Koi online hai?", "Aaj ka mood calm hai", "Sab smile karo 😊",
+    "Aaj thoda free hoon", "Koi chat karna chahta?", "Aaj ka din simple tha", "Sab safe raho 👍",
+    "Aaj thoda relax mode", "Koi interesting topic?", "Aaj ka mood good hai", "Sab khush raho 👍",
+    "Aaj thoda lazy hoon 😄", "Koi baat kare?", "Aaj ka din okay 👍", "Sab chill raho 😄",
+    "Aaj thoda normal day", "Koi online aao 😄", "Sab mast raho 👍", "Hello dosto, kya haal hai?",
+    "Sab log theek ho na?", "Group thoda silent lag raha 😄", "Aaj weather kaisa hai wahan?",
+    "Sabka din kaisa ja raha?", "Koi interesting update?", "Aaj thoda busy hoon yaar", "Koi movie dekh raha hai?",
+    "Aaj ka mood thoda lazy hai 😅", "Sab active ho jao 😄", "Koi new cheez seekhi aaj?",
+    "Aaj ka din smooth chal raha", "Koi online game khelta hai?", "Aaj thoda rest mode me hoon",
+    "Sabka plan kya hai aaj?", "Koi baat karega?", "Aaj ka din okay tha", "Sab khush raho 👍",
+    "Aaj kuch special nahi hua", "Koi fun activity karta hai?", "Aaj ka mood calm hai",
+    "Koi online aao yaar", "Aaj ka day normal hai", "Sab positive raho 👍", "Koi interesting topic?",
+    "Aaj thoda tired hoon 😅", "Sab enjoy karo 👍", "Aaj kuch productive kiya?", "Koi study kar raha hai?",
+    "Aaj ka mood good hai", "Sab safe & happy raho 👍", "Koi baat karni hai kisi ko?",
+    "Aaj thoda slow day hai", "Sabka din awesome ho 👍", "Koi coding karta hai yahan?",
+    "Aaj thoda busy schedule hai", "Sab smile karo 😊", "Koi late night tak jagta hai?",
+    "Aaj ka din decent tha", "Koi online hai?", "Aaj thoda relax kar raha hoon",
+    "Aaj ka mood neutral hai", "Sab positive socho 👍", "Koi fun fact batao", "Aaj ka plan simple hai",
+    "Sab healthy raho 👍", "Koi creative kaam karta hai?", "Aaj ka din smooth tha", "Sab safe ho na?",
+    "Koi suggestion do yaar", "Aaj thoda free time mila", "Aaj ka mood happy hai 😄",
+    "Sabka day kaisa gaya?", "Koi photography karta hai?", "Aaj thoda normal day", "Sab enjoy life 👍",
+    "Koi idea share karo", "Aaj ka din fast gaya", "Sab chill raho 😄", "Koi online aao baat karte hain",
+    "Aaj thoda silent hoon", "Aaj ka mood okay hai", "Sab mast ho 👍", "Koi baat karega?",
+    "Aaj thoda relax mode", "Sab khush raho 👍", "Koi fun story batao", "Aaj ka din simple tha",
+    "Sab positive raho 👍", "Koi interesting cheez dekhi aaj?", "Aaj thoda lazy feel ho raha",
+    "Aaj ka mood good good 😄", "Sab safe raho 👍", "Koi new update share karo", "Aaj ka din calm tha",
+    "Koi baat karna chahta?", "Aaj thoda busy tha yaar", "Sab enjoy karo 👍", "Koi online game?",
+    "Aaj ka mood thoda off hai 😅", "Aaj ka din okay okay", "Sab positive raho 👍",
+    "Koi interesting idea?", "Aaj thoda free hoon", "Sab smile karo 😊", "Koi late night chat karega?",
+    "Aaj ka din decent tha", "Koi baat karega?", "Aaj thoda relax hoon", "Aaj ka mood simple hai",
+    "Sab safe raho 👍", "Koi suggestion chahiye", "Aaj ka din normal tha", "Sab enjoy karo 👍",
+    "Koi online aao yaar", "Aaj thoda tired hoon 😅", "Sab mast raho 👍", "Koi baat karega?",
+    "Aaj ka mood calm calm", "Aaj ka din smooth gaya", "Sab positive raho 👍", "Koi fun idea?",
+    "Aaj thoda free feel ho raha", "Sab smile karo 😊", "Koi interesting baat?", "Aaj ka din okay 👍",
+    "Sab mast raho 👍", "Koi online hai kya?", "Aaj thoda relax kar raha", "Aaj ka mood good 👍",
+    "Sab safe raho 👍", "Koi suggestion do", "Aaj ka din simple simple", "Sab enjoy karo 👍",
+    "Koi baat kare?", "Aaj thoda busy hoon", "Sab mast raho 👍", "Koi online aao 😄",
+    "Aaj ka mood neutral", "Aaj ka din calm tha", "Sab positive raho 👍", "Koi fun topic?",
+    "Aaj thoda free hoon", "Sab smile karo 😊", "Koi chat karega?", "Aaj ka din okay 👍",
+    "Sab mast raho 👍", "Koi online hai?", "Aaj thoda relax mood", "Aaj ka mood good good",
+    "Sab safe raho 👍", "Koi suggestion?", "Aaj ka din normal 👍", "Sab enjoy karo 👍",
+    "Koi baat karega?", "Aaj thoda silent mode", "Sab mast raho 👍", "Koi online aao 😄",
+    "Sab khush raho 👍"
+    # agar zyada duplicates hain to unique bana liya, random.choice se variety rahegi
+]
+
+async def generate_message():
+    try:
+        current_time = datetime.now().strftime("%Y-%m-%d %I:%M %p IST")
+        prompt = prompt_template.format(current_time=current_time)
+        response = model.generate_content(prompt)
+        msg = response.text.strip()
+        if len(msg) > 120:
+            msg = msg[:117] + "... 😄"
+        if msg:
+            return msg
+    except Exception as e:
+        print(f"Gemini fail: {e} → fallback use kar raha")
+    
+    # fallback from your list
+    return random.choice(fallback_messages)
+
+async def main():
+    await client.start(phone=phone)
+    print("Login ho gaya! 24/7 mode ON (5-10 sec wait) – Flood aa sakta hai jaldi!")
+    
+    try:
+        group = await client.get_entity(group_username)
+        print(f"Group: {group.title}")
+    except Exception as e:
+        print(f"Group nahi mila: {e} – pehle app se join kar le")
+        return
+
+    message_count = 0
+    
+    while True:  # 24/7 infinite loop
+        try:
+            msg = await generate_message()
+            await client.send_message(group, msg)
+            message_count += 1
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] Sent #{message_count}: {msg}")
+            
+            wait = random.randint(5, 10)
+            print(f"Next in ~{wait} sec...")
+            await asyncio.sleep(wait)
+            
+        except FloodWaitError as e:
+            print(f"🚨 FLOOD WAIT! Wait {e.seconds} sec (~{e.seconds//60} min)")
+            await asyncio.sleep(e.seconds)
+        except Exception as e:
+            print(f"Error: {e}")
+            await asyncio.sleep(30)  # safe retry
+
+# Run karo
+asyncio.run(main())
